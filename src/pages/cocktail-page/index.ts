@@ -1,1 +1,0 @@
-export * from './cocktail-page';
