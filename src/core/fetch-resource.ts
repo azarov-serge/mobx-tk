@@ -26,12 +26,12 @@ export class FetchResource<Types, Key extends string> {
   };
 
   public getPaginationStatus<S>(keys: string[]): QueryStatus<PaginationResponse<S>> {
-    const status = keys.reduce<unknown>((acc, key) => {
-      let result = (acc as QueryStatus<PaginationResponse<unknown>>).cloneWith() as QueryStatus<
-        PaginationResponse<unknown>
+    const status = keys.reduce((acc, key) => {
+      let result = (acc as QueryStatus<PaginationResponse<S>>).cloneWith() as QueryStatus<
+        PaginationResponse<S>
       >;
 
-      const pageStatus = this.getStatus(key) as QueryStatus<PaginationResponse<unknown>>;
+      const pageStatus = this.getStatus(key) as QueryStatus<PaginationResponse<S>>;
 
       if (pageStatus.data) {
         const data = [...(result?.data?.data ?? []), ...(pageStatus.data?.data ?? [])];
@@ -52,8 +52,7 @@ export class FetchResource<Types, Key extends string> {
           ...pageStatus,
           data: {
             count: 0,
-            lastId: 0,
-            lastValue: 0,
+            params: {},
             page: 0,
             limit: 0,
             data: [],
@@ -63,7 +62,7 @@ export class FetchResource<Types, Key extends string> {
       }
 
       return result;
-    }, new QueryStatus<PaginationResponse<unknown>>());
+    }, new QueryStatus<PaginationResponse<S>>());
 
     return status as QueryStatus<PaginationResponse<S>>;
   }

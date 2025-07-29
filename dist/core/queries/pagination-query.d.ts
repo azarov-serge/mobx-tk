@@ -1,6 +1,6 @@
 import { PageQueryParams, PaginationQueryInterface, QueryParams } from './types';
 import { AbstractQuery } from './abstract-query';
-export declare class PaginationQuery extends AbstractQuery {
+export declare class PaginationQuery extends AbstractQuery implements PaginationQueryInterface {
     page: number;
     pageParams: PageQueryParams;
     pageLimit: PageQueryParams;
@@ -16,6 +16,7 @@ export declare class PaginationQuery extends AbstractQuery {
     nextPage: (params: QueryParams) => boolean;
     getPaginationParamsValue: <T>(key: string, defaultValue?: T | undefined, page?: number) => T;
     setParams: (params: QueryParams) => void;
+    build: () => PaginationQuery;
     private getLimit;
     static isInstance(value: unknown): value is PaginationQuery;
 }

@@ -1,11 +1,21 @@
 import { StringifyOptions } from 'query-string';
-import { QueryInterface, QueryMethod, QueryParams } from './types';
-export declare abstract class AbstractQuery implements QueryInterface {
+import { PaginationQueryInterface, QueryInterface, QueryMethod, QueryParams } from './types';
+export declare abstract class AbstractQuery implements Omit<QueryInterface, 'build'> {
     readonly id: string;
     readonly baseUrl: string;
     readonly method: QueryMethod;
     params: QueryParams;
     urlParam: string;
+    data?: unknown;
+    headers?: Record<string, string>;
+    withCache?: boolean;
+    mock?: unknown;
+    mockDelay?: number;
+    retry?: number;
+    retryDelay?: number;
+    fetch?: (query: QueryInterface | PaginationQueryInterface, signal: AbortSignal) => Promise<unknown>;
+    transformResponse?: (response: unknown) => unknown | null;
+    getQueryArgs?: (args: unknown) => Partial<QueryInterface>;
     private _key?;
     constructor(data?: Partial<QueryInterface>);
     /** Unique resource key */

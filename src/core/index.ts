@@ -4,4 +4,4 @@ export * from './view';
 export * from './types';
 export * from './rest-service';
 export * from './constants';
-export * from './helpers';
+export * from './tk-store';

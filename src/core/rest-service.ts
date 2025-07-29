@@ -1,24 +1,14 @@
 import { observable, makeAutoObservable, action } from 'mobx';
 import axios, { AxiosInstance, AxiosResponse, CanceledError } from 'axios';
-import {
-  CertError as AuthCertError,
-  NetworkError as AuthNetworkError,
-  AuthStrategyManagerInterface,
-} from '@auth-strategy-manager/core';
 
 import { delay } from '../shared/utils';
-import { authStrategyManager, CERT_ERROR_CODE, networkErrors } from './constants';
 
 import type { RequestArgs, Statuses } from './types';
-import { CertError, NetworkError, QueryError, QueryStatus } from './queries';
-import { appNavigator } from './helpers';
-
-const DEFAULT_DELAY_MS = 300;
+import { QueryError, QueryStatus } from './queries';
 
 export const ABORT_REQUEST_MESSAGE = 'Abort request';
 export type RestServiceArgs = {
   axiosInstance?: AxiosInstance;
-  authStrategyManager?: AuthStrategyManagerInterface;
   getError?: (error: unknown) => QueryError;
 };
 
@@ -28,7 +18,6 @@ export class RestService<T> {
   public retries: Record<string, number> = {};
   public abortControllers: Record<string, AbortController> = {};
   public axiosInstance: AxiosInstance = axios.create();
-  public authStrategyManager: AuthStrategyManagerInterface = authStrategyManager;
   public getError?: (error: unknown) => QueryError;
 
   constructor(args?: RestServiceArgs) {
@@ -42,64 +31,65 @@ export class RestService<T> {
     this.clearError = this.clearError.bind(this);
 
     this.axiosInstance = args?.axiosInstance ?? this.axiosInstance;
-    this.authStrategyManager = args?.authStrategyManager ?? this.authStrategyManager;
     this.getError = args?.getError ?? this.getError;
   }
 
-  public request = async <R>(args: RequestArgs<R>): Promise<QueryStatus<R>> => {
-    const { query, data, fetch: fetchFn, adaptResponse, retry, retryDelay } = args;
-    const { mock } = args;
+  public request = async <R>(args: RequestArgs): Promise<QueryStatus<R>> => {
+    const query = args.query.build();
+
     let status = this.getStatus<R>(query.key).cloneWith({ error: null });
 
-    if (!retry && status.isFetching && query.method === 'GET') {
+    if (!query.retry && status.isFetching && query.method === 'GET') {
       return status as unknown as QueryStatus<R>;
     }
 
     status = status.cloneWith({ isFetching: true, error: null });
 
-    this.setStatus(query.key, status as unknown as QueryStatus<T>);
+    this.setStatus(query.key, status as unknown as QueryStatus<R>);
 
     const headers = {
       ['Accept']: 'application/json',
       ['Content-Type']: 'application/json',
-      ...(args?.headers ?? {}),
+      ...(query.headers ?? {}),
     };
 
-    if (mock && mock.data) {
-      await delay(mock?.delay || DEFAULT_DELAY_MS);
+    if (query.mock && query.mockDelay) {
+      await delay(query.mockDelay);
       status = status.cloneWith({
-        data: adaptResponse ? adaptResponse(mock.data) : (mock.data as R),
+        data: query.transformResponse
+          ? (query.transformResponse(query.mock) as R)
+          : (query.data as R),
         isFetched: true,
         isFetching: false,
       });
 
-      this.setStatus(query.key, status as unknown as QueryStatus<T>);
+      this.setStatus(query.key, status as unknown as QueryStatus<R>);
 
       return status;
     }
 
     try {
-      if (retry) {
+      if (query.retry) {
         this.retries[query.key] = (this.retries[query.key] ?? 0) + 1;
       }
 
       const abortController = new AbortController();
       this.abortControllers[query.key] = abortController;
 
-      const request: Promise<R | AxiosResponse<R>> = fetchFn
-        ? fetchFn({ ...args, signal: abortController.signal })
+      const request: Promise<R | AxiosResponse<R>> = query.fetch
+        ? (query.fetch(query, abortController.signal) as Promise<R | AxiosResponse<R>>)
         : this.axiosInstance({
             url: query.url,
             method: query.method,
             headers,
-            data,
+            data: query.data,
             signal: abortController.signal,
           });
 
       const response = await request;
 
       status = status.cloneWith({
-        data: adaptResponse ? adaptResponse(response) : (response as R),
+        data: query.transformResponse ? (query.transformResponse(response) as R) : (response as R),
         isFetched: true,
         isFetching: false,
       });
@@ -108,7 +98,7 @@ export class RestService<T> {
 
       this.setStatus(query.key, status as unknown as QueryStatus<T>);
 
-      if (retry) {
+      if (query.retry) {
         delete this.retries[query.key];
       }
 
@@ -122,33 +112,8 @@ export class RestService<T> {
         return new QueryStatus();
       }
 
-      const isAuthError =
-        (error as { status: number } | undefined)?.status === 401 ||
-        (error as { response: { status: number } } | undefined)?.response?.status === 401;
-
-      const isLoginPath = window.location.pathname.includes(
-        this.authStrategyManager.strategy.signInUrl ?? ''
-      );
-
-      if (isAuthError && !isLoginPath) {
-        // To clear HTTP Only Cookies
-        await this.authStrategyManager.strategy.signOut();
-
-        // Update the start page for strategies to redirect to it after authorization
-        this.authStrategyManager.startUrl = window.location.href;
-
-        if (this.authStrategyManager.strategy.signInUrl) {
-          if (appNavigator.navigate) {
-            appNavigator.navigate(this.authStrategyManager.strategy.signInUrl);
-          } else {
-            window.location.replace(this.authStrategyManager.strategy.signInUrl);
-          }
-        }
-
-        status = status.cloneWith({
-          isFetched: true,
-          isFetching: false,
-        });
+      if (this.getError) {
+        status = status.cloneWith({ error: this.getError(error) });
 
         this.setStatus(query.key, status as unknown as QueryStatus<T>);
 
@@ -159,33 +124,19 @@ export class RestService<T> {
         (error as { status: number } | undefined)?.status !== 403 &&
         !(error as { config?: { signal?: { aborted?: boolean } } } | undefined)?.config?.signal
           ?.aborted &&
-        retry &&
-        this.retries[query.key] < retry
+        query.retry &&
+        this.retries[query.key] < query.retry
       ) {
-        await delay(retryDelay ?? 0);
+        await delay(query.retryDelay ?? 0);
         return await this.request(args);
       }
 
-      if (error instanceof AuthCertError) {
-        status = status.cloneWith({ error: new CertError() });
-      } else if (error instanceof AuthNetworkError) {
-        status = status.cloneWith({ error: new NetworkError(error.message) });
-      } else if (
-        axios.isAxiosError(error) &&
-        networkErrors.includes(`${error?.code ?? error?.message}`)
-      ) {
+      if (axios.isAxiosError(error)) {
         status = status.cloneWith({
-          error: new NetworkError(error.message),
-        });
-      } else if (axios.isAxiosError(error)) {
-        status = status.cloneWith({
-          error:
-            error?.code === CERT_ERROR_CODE
-              ? new CertError()
-              : new QueryError({
-                  status: error.status ?? 500,
-                  message: error.message,
-                }),
+          error: new QueryError({
+            status: error.status ?? 500,
+            message: error.message,
+          }),
         });
       } else if (error instanceof Error) {
         status = status.cloneWith({
@@ -196,8 +147,6 @@ export class RestService<T> {
         });
       } else if (error instanceof QueryError) {
         status = status.cloneWith({ error });
-      } else if (this.getError) {
-        status = status.cloneWith({ error: this.getError(error) });
       } else {
         status = status.cloneWith({
           error: new QueryError({

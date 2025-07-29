@@ -1,12 +1,25 @@
 import qs, { StringifyOptions } from 'query-string';
-import { QueryInterface, QueryMethod, QueryParams } from './types';
+import { PaginationQueryInterface, QueryInterface, QueryMethod, QueryParams } from './types';
 
-export abstract class AbstractQuery implements QueryInterface {
+export abstract class AbstractQuery implements Omit<QueryInterface, 'build'> {
   public readonly id: string = '';
   public readonly baseUrl: string = '';
   public readonly method: QueryMethod = 'GET';
   public params: QueryParams = {};
   public urlParam: string = '';
+  public data?: unknown;
+  public headers?: Record<string, string>;
+  public withCache?: boolean;
+  public mock?: unknown;
+  public mockDelay?: number;
+  public retry?: number;
+  public retryDelay?: number;
+  public fetch?: (
+    query: QueryInterface | PaginationQueryInterface,
+    signal: AbortSignal
+  ) => Promise<unknown>;
+  public transformResponse?: (response: unknown) => unknown | null;
+  public getQueryArgs?: (args: unknown) => Partial<QueryInterface>;
   private _key?: string;
 
   constructor(data?: Partial<QueryInterface>) {
@@ -15,6 +28,16 @@ export abstract class AbstractQuery implements QueryInterface {
     this.params = { ...(data?.params ?? this.params) };
     this.baseUrl = data?.baseUrl || data?.url || this.baseUrl;
     this.urlParam = data?.urlParam || this.urlParam;
+    this.getQueryArgs = data?.getQueryArgs;
+    this.data = data?.data;
+    this.headers = data?.headers;
+    this.withCache = data?.withCache;
+    this.mock = data?.mock;
+    this.mockDelay = data?.mockDelay;
+    this.retry = data?.retry;
+    this.retryDelay = data?.retryDelay;
+    this.fetch = data?.fetch;
+    this.transformResponse = data?.transformResponse;
 
     if (data?.key) {
       this._key = data.key;

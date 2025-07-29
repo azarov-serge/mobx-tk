@@ -19,14 +19,27 @@ export type QueryInterface = {
     baseUrl: string;
     method: QueryMethod;
     params: QueryParams;
+    data?: unknown;
+    headers?: Record<string, string>;
+    withCache?: boolean;
+    mock?: unknown;
+    mockDelay?: number;
+    retry?: number;
+    retryDelay?: number;
+    fetch?: (query: QueryInterface | PaginationQueryInterface, signal: AbortSignal) => Promise<unknown>;
+    transformResponse?: (response: unknown) => unknown | null;
+    getQueryArgs?: <A = undefined>(args: A) => Partial<QueryInterface>;
+    build: () => QueryInterface;
 };
 export type PaginationResponse<T> = {
     count: number;
-    lastId: number | string;
-    lastValue: number | string;
     page: number;
     limit: number;
     data: T[];
+    /**
+     * May be used for pagination and contains the last params(id) of the query
+     */
+    params?: Record<string, number | string>;
 };
 export type PageQueryParams = Record<number, QueryParams>;
 export type PaginationQueryInterface = QueryInterface & {

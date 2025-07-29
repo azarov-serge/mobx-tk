@@ -2,26 +2,8 @@ import { PaginationQuery, PaginationQueryInterface, PaginationResponse, Query, Q
 export type Statuses<T> = {
     [key: string]: QueryStatus<T>;
 };
-export type FetchArgs = {
+export type RequestArgs = {
     query: Query | PaginationQuery;
-    data?: unknown;
-    headers?: Record<string, string>;
-    signal?: AbortSignal;
-};
-export type RequestArgs<T> = {
-    query: Query | PaginationQuery;
-    data?: unknown;
-    headers?: Record<string, string>;
-    withCache?: boolean;
-    params?: Record<string, string> | string;
-    mock?: {
-        data: unknown;
-        delay?: number;
-    };
-    retry?: number;
-    retryDelay?: number;
-    fetch?: (args?: Partial<FetchArgs>) => Promise<T>;
-    adaptResponse?: <R>(response: R) => T | null;
 };
 export type QueryHelpers = {
     clearError: (args?: Partial<QueryInterface>) => void;
@@ -29,6 +11,7 @@ export type QueryHelpers = {
     resetQuery: () => void;
 };
 export type PaginationQueryHelpers = {
+    prevPage: (params: QueryParams) => boolean;
     nextPage: (params: QueryParams) => boolean;
     clearError: (args?: Partial<PaginationQueryInterface>) => void;
     reset: (args?: Partial<PaginationQueryInterface>) => void;
@@ -40,3 +23,6 @@ export type QueryData<T, Fn> = QueryHelpers & QueryStatus<T> & {
 export type PaginationQueryData<T, Fn> = PaginationQueryHelpers & QueryStatus<PaginationResponse<T>> & {
     fetchData: Fn;
 };
+export type QueryConfig = QueryInterface & Omit<RequestArgs, 'query'>;
+export type PaginationQueryConfig = PaginationQueryInterface & Omit<RequestArgs, 'query'>;
+export type StoreConfig = Record<string, QueryConfig | PaginationQueryConfig>;

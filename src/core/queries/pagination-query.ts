@@ -1,7 +1,7 @@
 import { PageQueryParams, PaginationQueryInterface, QueryParams } from './types';
 import { AbstractQuery } from './abstract-query';
 
-export class PaginationQuery extends AbstractQuery {
+export class PaginationQuery extends AbstractQuery implements PaginationQueryInterface {
   public page: number = 1;
   public pageParams: PageQueryParams = {};
   public pageLimit: PageQueryParams = {};
@@ -60,7 +60,7 @@ export class PaginationQuery extends AbstractQuery {
   }
 
   public cloneWith = (data?: Partial<PaginationQueryInterface>): PaginationQuery => {
-    return new PaginationQuery({ ...this, ...(data ?? {}) });
+    return new PaginationQuery({ ...this, ...data });
   };
 
   public nextPage = (params: QueryParams): boolean => {
@@ -98,6 +98,10 @@ export class PaginationQuery extends AbstractQuery {
     }
 
     this.params = { ...params };
+  };
+
+  public build = (): PaginationQuery => {
+    return this.cloneWith();
   };
 
   private getLimit = (page?: number): QueryParams => {
