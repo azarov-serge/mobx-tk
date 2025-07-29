@@ -22,14 +22,22 @@ const Header = styled.header`
   justify-content: space-between;
   width: 100%;
   height: 100px;
-  background-color: red;
+  margin-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+`;
+
+const Logo = styled.p`
+  font-size: 24px;
+  font-weight: 600;
 `;
 
 export const InnerPage: React.FC = () => {
   return (
     <ErrorBoundary errorPage={ErrorPage}>
       <Verifier>
-        <Header>MobX-TK</Header>
+        <Header>
+          <Logo>MobX-TK</Logo>
+        </Header>
         <main>
           <Outlet />
         </main>

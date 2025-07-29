@@ -1,5 +1,5 @@
 import { makeObservable } from 'mobx';
-import { View, QueryData, QueryInterface, QueryHelpers } from 'mobx-tk';
+import { View, QueryData } from 'mobx-tk';
 
 import { AuthKey, AuthService, authService } from '../services';
 
@@ -11,13 +11,11 @@ export type FetchUserData = Awaited<
   ReturnType<typeof authService.signIn | typeof authService.signUp>
 >['data'];
 
-class AuthView extends View<AuthService, AuthKey> {
+export class AuthView extends View<AuthService, AuthKey> {
   constructor() {
     super(authService);
     makeObservable(this);
   }
-
-  verified: boolean = false;
 
   public createCheckAuthData = (): QueryData<CheckAuthData, typeof authService.checkAuth> => {
     const query = this.service.queries.checkAuth;
@@ -55,54 +53,54 @@ class AuthView extends View<AuthService, AuthKey> {
     return { ...status, ...helpers, fetchData: this.service.signOut };
   };
 
-  public createFetchUserData = (): QueryData<FetchUserData, () => Promise<void>> => {
-    const key = this.service.queries.user.key;
-    const signInQuery = this.service.queries.signIn;
-    const signUpQuery = this.service.queries.signUp;
-    const signInStatus = this.service.getStatus<FetchUserData>(signInQuery.key);
-    const signUpStatus = this.service.getStatus<FetchUserData>(signUpQuery.key);
+  // public createFetchUserData = (): QueryData<FetchUserData, () => Promise<void>> => {
+  //   const key = this.service.queries.user.key;
+  //   const signInQuery = this.service.queries.signIn;
+  //   const signUpQuery = this.service.queries.signUp;
+  //   const signInStatus = this.service.getStatus<FetchUserData>(signInQuery.key);
+  //   const signUpStatus = this.service.getStatus<FetchUserData>(signUpQuery.key);
 
-    const status = {
-      isFetching: signInStatus.isFetching || signUpStatus.isFetching,
-      isFetched: signInStatus.isFetched || signUpStatus.isFetched,
-      data: signInStatus.data || signUpStatus.data,
-      error: signInStatus.error || signUpStatus.error,
-    };
+  //   const status = {
+  //     isFetching: signInStatus.isFetching || signUpStatus.isFetching,
+  //     isFetched: signInStatus.isFetched || signUpStatus.isFetched,
+  //     data: signInStatus.data || signUpStatus.data,
+  //     error: signInStatus.error || signUpStatus.error,
+  //   };
 
-    if (!this.helpers[key]) {
-      const clearError = (args?: QueryInterface): void => {
-        this.service.rest.clearError(signInQuery.cloneWith(args).key);
-        this.service.rest.clearError(signUpQuery.cloneWith(args).key);
-      };
+  //   if (!this.helpers[key]) {
+  //     const clearError = (args?: QueryInterface): void => {
+  //       this.service.rest.clearError(signInQuery.cloneWith(args).key);
+  //       this.service.rest.clearError(signUpQuery.cloneWith(args).key);
+  //     };
 
-      const reset = (args?: QueryInterface): void => {
-        this.service.rest.reset(signInQuery.cloneWith(args).key);
-        this.service.rest.reset(signUpQuery.cloneWith(args).key);
-      };
+  //     const reset = (args?: QueryInterface): void => {
+  //       this.service.rest.reset(signInQuery.cloneWith(args).key);
+  //       this.service.rest.reset(signUpQuery.cloneWith(args).key);
+  //     };
 
-      const resetQuery = (): void => {
-        this.service.rest.reset(signInQuery.keyShort);
-        this.service.rest.reset(signUpQuery.keyShort);
-        this.service.rest.resetQuery(signInQuery.key);
-        this.service.rest.resetQuery(signUpQuery.key);
-        this.service.rest.resetQuery(signInQuery.keyShort);
-        this.service.rest.resetQuery(signUpQuery.keyShort);
-        this.service.resetQuery(key);
-      };
+  //     const resetQuery = (): void => {
+  //       this.service.rest.reset(signInQuery.keyShort);
+  //       this.service.rest.reset(signUpQuery.keyShort);
+  //       this.service.rest.resetQuery(signInQuery.key);
+  //       this.service.rest.resetQuery(signUpQuery.key);
+  //       this.service.rest.resetQuery(signInQuery.keyShort);
+  //       this.service.rest.resetQuery(signUpQuery.keyShort);
+  //       this.service.resetQuery(key);
+  //     };
 
-      this.setHelpers('user', {
-        clearError,
-        reset,
-        resetQuery,
-      } as QueryHelpers);
-    }
+  //     this.setHelpers('user', {
+  //       clearError,
+  //       reset,
+  //       resetQuery,
+  //     } as QueryHelpers);
+  //   }
 
-    return {
-      ...status,
-      ...this.helpers[key]!,
-      fetchData: async () => {},
-    };
-  };
+  //   return {
+  //     ...status,
+  //     ...this.helpers[key]!,
+  //     fetchData: async () => {},
+  //   };
+  // };
 }
 
 export const authView = new AuthView();

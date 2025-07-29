@@ -49,9 +49,9 @@
   },
   "dependencies": {
     "@admiral-ds/react-ui": ">=6.2.0",
-    "@auth-strategy-manager/core": "^1.0.4",
-    "@auth-strategy-manager/keycloak": "^1.0.1",
-    "@auth-strategy-manager/rest": "^1.0.1",
+    "auth-strategy-manager": "^1.0.8",
+    "@auth-strategy-manager/keycloak": "^1.0.4",
+    "@auth-strategy-manager/rest": "^1.0.4",
     "@azarov-serge/indexed-db-client": "^1.0.0",
     "axios": ">=1.5.1",
     "install": "^0.13.0",

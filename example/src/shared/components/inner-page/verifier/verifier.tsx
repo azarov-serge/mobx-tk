@@ -2,8 +2,8 @@ import React, { FC, PropsWithChildren } from 'react';
 import { observer } from 'mobx-react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { authStrategyManager } from 'mobx-tk';
 
+import { authStrategyManager } from '../../../constants';
 import { AUTH_PATH } from '../../../../app/router/constants';
 import { useCheckAuth } from '../../../../shared/hooks/auth';
 
@@ -23,22 +23,24 @@ export const Error = styled.div`
 export const Verifier: FC<PropsWithChildren<React.PropsWithChildren>> = observer((props) => {
   const { children } = props;
   const navigate = useNavigate();
-  const { isFetched, isFetching, data: verified, fetchData: checkAuth, error } = useCheckAuth();
+  const { isFetched, isFetching, data: checkedAuth, fetchData: checkAuth, error } = useCheckAuth();
 
   React.useEffect(() => {
-    checkAuth();
+    if (!checkedAuth) {
+      checkAuth();
+    }
   }, []);
 
-  if ((!verified && isFetched) || (error && isFetched)) {
+  if (isFetching) {
+    return <p>Verifying ...</p>;
+  }
+
+  if ((!checkedAuth && isFetched) || (error && isFetched)) {
     authStrategyManager.startUrl = window.location.href;
 
     navigate(authStrategyManager.strategy?.signInUrl ?? `/${AUTH_PATH}`);
 
     return null;
-  }
-
-  if (!verified || isFetching) {
-    return <p>Verifying ...</p>;
   }
 
   if (error) {

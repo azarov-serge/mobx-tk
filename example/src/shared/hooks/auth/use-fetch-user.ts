@@ -1,5 +1,5 @@
-import { authView } from '../../../app/stores/views';
+// import { authView } from '../../../app/stores/views';
 
-export const useFetchUser = () => {
-  return { ...authView.createFetchUserData() };
-};
+// export const useFetchUser = () => {
+//   return { ...authView.createFetchUserData() };
+// };

@@ -1,5 +1,6 @@
 import { QueryError } from 'mobx-tk';
-import { UserModel } from '../../../shared/models';
+
+import { UserModel } from '../models';
 import { Api } from './api';
 
 import { userApi } from './user-api';
@@ -14,27 +15,26 @@ export class AuthApi extends Api {
   public checkAuth = async (): Promise<boolean> => {
     const db = await this.getDb();
     await this.delay(500);
+
     const [authItem] = await db
       .from('auth')
       .select<AuthItem>({ key: 'authUserId', value: this.userId });
 
     if (!authItem) {
+      await db.from('auth').delete({ key: 'authUserId', value: this.userId });
+
       throw new QueryError({
         status: 401,
-        message: 'Token is expired',
+        message: 'User is not authenticated',
       });
     }
 
-    const isExpired = Number(authItem.createdAt) + Number(authItem.accessMs) < Number(new Date());
+    const isExpired =
+      Number(new Date(authItem.createdAt)) + Number(authItem.accessMs) < Number(new Date());
 
     if (isExpired) {
-      throw new QueryError({
-        status: 401,
-        message: 'Token is expired',
-      });
+      await this.refreshToken();
     }
-
-    await this.refreshToken();
 
     return true;
   };
@@ -49,6 +49,8 @@ export class AuthApi extends Api {
     const [user] = await db.from('users').select<User>({ key: 'usersLogin', value: login });
 
     if (!user) {
+      await db.from('auth').delete({ key: 'authUserId', value: this.userId });
+
       throw new QueryError({
         status: 401,
         message: 'User not found',
@@ -56,6 +58,8 @@ export class AuthApi extends Api {
     }
 
     if (user.password !== this.createPasswordHash(password)) {
+      await db.from('auth').delete({ key: 'authUserId', value: this.userId });
+
       throw new QueryError({
         status: 401,
         message: 'Invalid password',
@@ -132,13 +136,32 @@ export class AuthApi extends Api {
       .select<AuthItem>({ key: 'authUserId', value: this.userId });
 
     if (!authItem) {
+      await db.from('auth').delete({ key: 'authUserId', value: this.userId });
+
+      throw new QueryError({
+        status: 401,
+        message: 'User is not authenticated',
+      });
+    }
+
+    const isExpired =
+      Number(new Date(authItem.createdAt)) + Number(authItem.refreshMs) < Number(new Date());
+
+    if (isExpired) {
+      await db.from('auth').delete({ key: 'authUserId', value: this.userId });
+
       throw new QueryError({
         status: 401,
         message: 'Token is expired',
       });
     }
 
-    await db.from('auth').update({ ...authItem, createdAt: new Date() });
+    await db.from('auth').update({
+      ...authItem,
+      refreshMs: DEFAULT_REFRESH_MS,
+      accessMs: DEFAULT_ACCESS_MS,
+      createdAt: new Date(),
+    });
   };
 
   private createPasswordHash = (password: string): string => {

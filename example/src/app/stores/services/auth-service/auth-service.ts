@@ -1,42 +1,43 @@
 import { makeObservable } from 'mobx';
-import { FetchResource, PaginationQuery, Query, QueryStatus } from 'mobx-tk';
+import { FetchResource, Query, QueryStatus } from 'mobx-tk';
 
 import { UserModel } from '../../../../shared/models';
-import { BASE_URL } from '../../api';
+import { authStrategyManager, PersistStrategy } from '../../../../shared/constants';
+import { BASE_URL } from '../../../../shared/api';
 
 export type AuthData = {
   login: string;
   password: string;
 };
 
-export type AuthKey = 'checkAuth' | 'signIn' | 'signUp' | 'signOut' | 'user';
-
 export type AuthServiceType = User | boolean;
-export const queries: Record<AuthKey, Query | PaginationQuery> = {
+
+export const queries = {
   checkAuth: new Query({
     url: `${BASE_URL}/check`,
+    fetch: authStrategyManager.checkAuth,
   }),
-
   signIn: new Query({
     url: `${BASE_URL}/signIn`,
     method: 'POST',
+    fetch: async (query) => await authStrategyManager.strategy.signIn({ data: query.data }),
+    transformResponse: (response) => UserModel.fromJson(response as UserModel),
   }),
 
   signUp: new Query({
     url: `${BASE_URL}/signUp`,
     method: 'POST',
+    fetch: authStrategyManager.strategy.signUp,
   }),
 
   signOut: new Query({
     url: `${BASE_URL}/signOut`,
     method: 'POST',
-  }),
-
-  user: new Query({
-    url: `${BASE_URL}/user`,
-    method: 'GET',
+    fetch: authStrategyManager.strategy.signOut,
   }),
 };
+
+export type AuthKey = keyof typeof queries;
 
 export class AuthService extends FetchResource<AuthServiceType, AuthKey> {
   constructor() {
@@ -44,45 +45,59 @@ export class AuthService extends FetchResource<AuthServiceType, AuthKey> {
     makeObservable(this);
   }
 
-  public checkAuth = (): Promise<QueryStatus<boolean>> => {
-    return this.rest.request<boolean>({
+  public checkAuth = (): Promise<QueryStatus<boolean | null>> => {
+    return this.rest.request<boolean | null>({
       query: this.queries.checkAuth,
-      fetch: this.rest.authorizer.check,
     });
   };
 
   public signIn = (data: AuthData): Promise<QueryStatus<UserModel>> => {
     // You can use other strategy
-    // public signIn = (data: AuthData, strategyName: string): Promise<QueryStatus<UserModel>> => {
-    // this.rest.authorizer.use(strategyName);
+    authStrategyManager.use('persist');
+    const strategy = authStrategyManager.strategy as PersistStrategy;
 
     return this.rest.request<UserModel>({
-      query: this.queries.signIn,
-      data,
-      fetch: this.rest.authorizer.strategy.signIn,
-      adaptResponse: (response) => {
-        return UserModel.fromJson(response as UserModel);
-      },
+      query: this.queries.signIn.cloneWith({
+        data,
+        fetch: async (query) => {
+          const response = await strategy.signIn({ data: query.data });
+
+          this.rest.setStatus(
+            this.queries.checkAuth.key,
+            new QueryStatus({ isFetched: true, data: true })
+          );
+
+          return response;
+        },
+      }),
     });
   };
 
   public signUp = (data: AuthData): Promise<QueryStatus<UserModel>> => {
     // You can use other strategy
-    // public signUp = (data: AuthData, strategyName: string): Promise<QueryStatus<UserModel>> => {
-    // this.rest.authorizer.use(strategyName);
+    authStrategyManager.use('persist');
+    const strategy = authStrategyManager.strategy as PersistStrategy;
 
     return this.rest.request<UserModel>({
-      query: this.queries.signUp,
-      data,
-      fetch: this.rest.authorizer.strategy.signUp,
-      adaptResponse: (response) => UserModel.fromJson(response as UserModel),
+      query: this.queries.signIn.cloneWith({
+        data,
+        fetch: async (query) => {
+          const response = await strategy.signUp({ data: query.data });
+
+          this.rest.setStatus(
+            this.queries.checkAuth.key,
+            new QueryStatus({ isFetched: true, data: true })
+          );
+
+          return response;
+        },
+      }),
     });
   };
 
   public signOut = (): Promise<QueryStatus<void>> => {
     return this.rest.request<void>({
       query: this.queries.signOut,
-      fetch: this.rest.authorizer.strategy.signOut,
     });
   };
 }

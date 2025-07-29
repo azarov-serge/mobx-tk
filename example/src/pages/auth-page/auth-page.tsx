@@ -1,11 +1,11 @@
 import React from 'react';
+import { observer } from 'mobx-react';
+import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import { Button, NotificationItem, TextInput } from '@admiral-ds/react-ui';
 
 import { UserModel } from '../../shared/models';
 import { useCheckAuth, useSignIn, useSignUp } from '../../shared/hooks/auth';
-import { observer } from 'mobx-react';
-import { appNavigator } from 'mobx-tk';
 
 const Wrapper = styled.div`
   display: flex;
@@ -40,6 +40,7 @@ const Input = styled(TextInput)`
 const DEFAULT_START_URL = '/';
 
 export const AuthPage: React.FC = observer(() => {
+  const navigate = useNavigate();
   const [mode, setMode] = React.useState<'signIn' | 'signUp'>('signIn');
   const [user, setUser] = React.useState<UserModel>(new UserModel());
 
@@ -83,11 +84,7 @@ export const AuthPage: React.FC = observer(() => {
 
   React.useEffect(() => {
     if (checkedAuth) {
-      if (appNavigator.navigate) {
-        appNavigator.navigate(DEFAULT_START_URL);
-      } else {
-        window.location.replace(DEFAULT_START_URL);
-      }
+      navigate(DEFAULT_START_URL);
     }
   }, [checkedAuth]);
 

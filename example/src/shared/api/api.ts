@@ -6,7 +6,7 @@ export const BASE_URL = 'http://localhost:3001';
 
 export abstract class Api {
   private readonly db: IndexedDbClient<StorageName, StorageIndexName>;
-  protected userId: Id = -1;
+  protected userId: Id = localStorage.getItem('token') ? Number(localStorage.getItem('token')) : -1;
   protected readonly delay = delay;
 
   constructor() {
